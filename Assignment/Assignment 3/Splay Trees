@@ -1,0 +1,315 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct Node {
+    int key;
+    struct Node *left, *right, *parent;
+} Node;
+
+Node *root = NULL;
+int rotations = 0;
+
+Node *createNode(int key) {
+    Node *n = malloc(sizeof(Node));
+    n->key = key;
+    n->left = n->right = n->parent = NULL;
+    return n;
+}
+
+void connectParent(Node *oldNode, Node *newNode) {
+    if (oldNode->parent == NULL)
+        root = newNode;
+    else if (oldNode == oldNode->parent->left)
+        oldNode->parent->left = newNode;
+    else
+        oldNode->parent->right = newNode;
+
+    if (newNode != NULL)
+        newNode->parent = oldNode->parent;
+}
+
+void rotateRight(Node *x) {
+    Node *y = x->left;
+
+    x->left = y->right;
+    if (y->right != NULL)
+        y->right->parent = x;
+
+    connectParent(x, y);
+    y->right = x;
+    x->parent = y;
+
+    rotations++;
+}
+
+void rotateLeft(Node *x) {
+    Node *y = x->right;
+
+    x->right = y->left;
+    if (y->left != NULL)
+        y->left->parent = x;
+
+    connectParent(x, y);
+    y->left = x;
+    x->parent = y;
+
+    rotations++;
+}
+
+void splay(Node *x) {
+    if (x == NULL)
+        return;
+
+    while (x->parent != NULL) {
+        Node *p = x->parent;
+        Node *g = p->parent;
+
+        /* Zig */
+        if (g == NULL) {
+            printf("Zig\n");
+
+            if (x == p->left)
+                rotateRight(p);
+            else
+                rotateLeft(p);
+        }
+
+        /* Zig-Zig */
+        else if (x == p->left && p == g->left) {
+            printf("Zig-Zig\n");
+            rotateRight(g);
+            rotateRight(p);
+        }
+        else if (x == p->right && p == g->right) {
+            printf("Zig-Zig\n");
+            rotateLeft(g);
+            rotateLeft(p);
+        }
+
+        /* Zig-Zag */
+        else if (x == p->right && p == g->left) {
+            printf("Zig-Zag\n");
+            rotateLeft(p);
+            rotateRight(g);
+        }
+        else {
+            printf("Zig-Zag\n");
+            rotateRight(p);
+            rotateLeft(g);
+        }
+    }
+
+    root = x;
+}
+
+void insert(int key) {
+    Node *parent = NULL;
+    Node *current = root;
+
+    while (current != NULL) {
+        parent = current;
+
+        if (key == current->key) {
+            printf("Duplicate key ignored.\n");
+            splay(current);
+            return;
+        }
+
+        if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+
+    Node *n = createNode(key);
+    n->parent = parent;
+
+    if (parent == NULL)
+        root = n;
+    else if (key < parent->key)
+        parent->left = n;
+    else
+        parent->right = n;
+
+    printf("Inserted %d\n", key);
+    splay(n);
+}
+
+Node *search(int key) {
+    Node *current = root;
+    Node *last = NULL;
+
+    while (current != NULL) {
+        last = current;
+
+        if (key == current->key) {
+            printf("Key found.\n");
+            splay(current);
+            return current;
+        }
+
+        if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+
+    printf("Key not found.\n");
+
+    /* Splay the last node visited */
+    if (last != NULL)
+        splay(last);
+
+    return NULL;
+}
+
+void deleteKey(int key) {
+    Node *current = root;
+
+    while (current != NULL && current->key != key) {
+        if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+
+    if (current == NULL) {
+        printf("Key not found.\n");
+        return;
+    }
+
+    splay(current);
+
+    Node *leftSubtree = root->left;
+    Node *rightSubtree = root->right;
+
+    if (leftSubtree != NULL)
+        leftSubtree->parent = NULL;
+
+    if (rightSubtree != NULL)
+        rightSubtree->parent = NULL;
+
+    free(root);
+
+    if (leftSubtree == NULL) {
+        root = rightSubtree;
+    } else {
+        root = leftSubtree;
+
+        Node *maximum = root;
+        while (maximum->right != NULL)
+            maximum = maximum->right;
+
+        splay(maximum);
+
+        root->right = rightSubtree;
+
+        if (rightSubtree != NULL)
+            rightSubtree->parent = root;
+    }
+
+    printf("Deleted %d\n", key);
+}
+
+void inorder(Node *node) {
+    if (node == NULL)
+        return;
+
+    inorder(node->left);
+    printf("%d ", node->key);
+    inorder(node->right);
+}
+
+void display(Node *node, int level) {
+    if (node == NULL)
+        return;
+
+    display(node->right, level + 1);
+
+    for (int i = 0; i < level; i++)
+        printf("    ");
+
+    printf("%d\n", node->key);
+
+    display(node->left, level + 1);
+}
+
+void freeTree(Node *node) {
+    if (node == NULL)
+        return;
+
+    freeTree(node->left);
+    freeTree(node->right);
+    free(node);
+}
+
+int main() {
+    int choice, key;
+
+    while (1) {
+        printf("\n--- SPLAY TREE MENU ---\n");
+        printf("1. Insert\n");
+        printf("2. Search / Access\n");
+        printf("3. Delete\n");
+        printf("4. Inorder Traversal\n");
+        printf("5. Display Tree\n");
+        printf("6. Rotation Count\n");
+        printf("7. Exit\n");
+        printf("Enter choice: ");
+
+        if (scanf("%d", &choice) != 1)
+            break;
+
+        switch (choice) {
+            case 1:
+                printf("Enter key: ");
+                scanf("%d", &key);
+                insert(key);
+                break;
+
+            case 2:
+                printf("Enter key to search: ");
+                scanf("%d", &key);
+                search(key);
+
+                if (root != NULL)
+                    printf("Current root = %d\n", root->key);
+                break;
+
+            case 3:
+                printf("Enter key to delete: ");
+                scanf("%d", &key);
+                deleteKey(key);
+                break;
+
+            case 4:
+                printf("Inorder: ");
+                inorder(root);
+                printf("\n");
+                break;
+
+            case 5:
+                if (root == NULL)
+                    printf("Tree is empty.\n");
+                else
+                    display(root, 0);
+                break;
+
+            case 6:
+                printf("Total rotations = %d\n", rotations);
+                break;
+
+            case 7:
+                freeTree(root);
+                freeTree(NULL);
+                exit(0);
+
+            default:
+                printf("Invalid choice.\n");
+        }
+    }
+
+    freeTree(root);
+    return 0;
+}
