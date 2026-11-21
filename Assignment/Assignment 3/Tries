@@ -1,0 +1,262 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define SIZE 100
+
+typedef struct Trie {
+    struct Trie *child[26];
+    int words;
+    int end;
+} Trie;
+
+Trie *createNode(void) {
+    return (Trie *)calloc(1, sizeof(Trie));
+}
+
+int indexOf(char c) {
+    if (c >= 'A' && c <= 'Z') c += 32;
+    if (c < 'a' || c > 'z') return -1;
+    return c - 'a';
+}
+
+void insert(Trie *root, char *word) {
+    Trie *t = root;
+
+    for (int i = 0; word[i]; i++) {
+        int c = indexOf(word[i]);
+        if (c == -1) continue;
+
+        if (!t->child[c])
+            t->child[c] = createNode();
+
+        t = t->child[c];
+        t->words++;
+    }
+
+    t->end = 1;
+}
+
+int search(Trie *root, char *word) {
+    Trie *t = root;
+
+    for (int i = 0; word[i]; i++) {
+        int c = indexOf(word[i]);
+        if (c == -1) continue;
+
+        if (!t->child[c]) return 0;
+        t = t->child[c];
+    }
+
+    return t->end;
+}
+
+int prefixCount(Trie *root, char *prefix) {
+    Trie *t = root;
+
+    for (int i = 0; prefix[i]; i++) {
+        int c = indexOf(prefix[i]);
+        if (c == -1) continue;
+
+        if (!t->child[c]) return 0;
+        t = t->child[c];
+    }
+
+    return t->words + t->end;
+}
+
+void autocomplete(Trie *t, char *buffer, int depth,
+                  int *count, int limit) {
+    if (*count >= limit) return;
+
+    if (t->end) {
+        buffer[depth] = '\0';
+        printf("%s ", buffer);
+        (*count)++;
+    }
+
+    for (int i = 0; i < 26 && *count < limit; i++) {
+        if (t->child[i]) {
+            buffer[depth] = 'a' + i;
+            autocomplete(t->child[i], buffer,
+                         depth + 1, count, limit);
+        }
+    }
+}
+
+int deleteWord(Trie *t, char *word, int pos) {
+    if (word[pos] == '\0') {
+        if (!t->end) return 0;
+        t->end = 0;
+        return 1;
+    }
+
+    int c = indexOf(word[pos]);
+    if (c == -1)
+        return deleteWord(t, word, pos + 1);
+
+    if (!t->child[c]) return 0;
+
+    int removed = deleteWord(t->child[c], word, pos + 1);
+
+    if (removed) {
+        t->child[c]->words--;
+
+        Trie *child = t->child[c];
+        int empty = !child->end;
+
+        for (int i = 0; i < 26; i++) {
+            if (child->child[i]) {
+                empty = 0;
+                break;
+            }
+        }
+
+        if (empty) {
+            free(child);
+            t->child[c] = NULL;
+        }
+    }
+
+    return removed;
+}
+
+int countNodes(Trie *t) {
+    if (!t) return 0;
+
+    int count = 1;
+    for (int i = 0; i < 26; i++)
+        count += countNodes(t->child[i]);
+
+    return count;
+}
+
+void freeTrie(Trie *t) {
+    if (!t) return;
+
+    for (int i = 0; i < 26; i++)
+        freeTrie(t->child[i]);
+
+    free(t);
+}
+
+int main(void) {
+    Trie *root = createNode();
+    int choice, limit, count;
+    char word[SIZE], buffer[SIZE];
+
+    while (1) {
+        printf("\n\n--- TRIE CONTACT MENU ---\n");
+        printf("1. Insert Contact\n");
+        printf("2. Search Contact\n");
+        printf("3. Count Prefix\n");
+        printf("4. Autocomplete\n");
+        printf("5. Delete Contact\n");
+        printf("6. Display Total Contacts and Nodes\n");
+        printf("7. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                printf("Enter contact name: ");
+                scanf("%99s", word);
+                insert(root, word);
+                printf("Contact inserted.\n");
+                break;
+
+            case 2:
+                printf("Enter name to search: ");
+                scanf("%99s", word);
+
+                if (search(root, word))
+                    printf("Contact found.\n");
+                else
+                    printf("Contact not found.\n");
+                break;
+
+            case 3:
+                printf("Enter prefix (use - for empty): ");
+                scanf("%99s", word);
+
+                if (strcmp(word, "-") == 0)
+                    word[0] = '\0';
+
+                printf("Prefix count = %d\n",
+                       prefixCount(root, word));
+                break;
+
+            case 4:
+                printf("Enter prefix (use - for empty): ");
+                scanf("%99s", word);
+
+                if (strcmp(word, "-") == 0)
+                    word[0] = '\0';
+
+                printf("Enter maximum results: ");
+                scanf("%d", &limit);
+
+                if (limit <= 0) {
+                    printf("Enter a positive number.\n");
+                    break;
+                }
+
+                {
+                    Trie *t = root;
+                    int valid = 1;
+
+                    for (int i = 0; word[i]; i++) {
+                        int c = indexOf(word[i]);
+                        if (c == -1) continue;
+
+                        if (!t->child[c]) {
+                            valid = 0;
+                            break;
+                        }
+                        t = t->child[c];
+                    }
+
+                    if (!valid) {
+                        printf("No matching contacts.\n");
+                    } else {
+                        strcpy(buffer, word);
+                        count = 0;
+                        printf("Suggestions: ");
+                        autocomplete(t, buffer,
+                                     strlen(word), &count, limit);
+
+                        if (count == 0)
+                            printf("No matching contacts.");
+
+                        printf("\n");
+                    }
+                }
+                break;
+
+            case 5:
+                printf("Enter contact to delete: ");
+                scanf("%99s", word);
+
+                if (deleteWord(root, word, 0))
+                    printf("Contact deleted.\n");
+                else
+                    printf("Contact not found.\n");
+                break;
+
+            case 6:
+                printf("Total contacts = %d\n", root->words);
+                printf("Total Trie nodes = %d\n",
+                       countNodes(root));
+                break;
+
+            case 7:
+                freeTrie(root);
+                printf("Program ended.\n");
+                return 0;
+
+            default:
+                printf("Invalid choice.\n");
+        }
+    }
+}
