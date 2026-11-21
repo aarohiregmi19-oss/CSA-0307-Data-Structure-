@@ -1,0 +1,29 @@
+
+#include <stdio.h>
+
+unsigned int hash(char reg[], unsigned int M)
+{
+    unsigned int h = 0;
+    int i = 0;
+
+    while (reg[i] != '\0')
+    {
+        h = h * 31 + (unsigned char)reg[i];
+        i++;
+    }
+
+    return h % M;
+}
+
+int main()
+{
+    char reg[50];
+    unsigned int M = 100003;
+
+    printf("Enter vehicle registration number: ");
+    scanf("%49s", reg);
+
+    printf("Hash value = %u\n", hash(reg, M));
+
+    return 0;
+}
