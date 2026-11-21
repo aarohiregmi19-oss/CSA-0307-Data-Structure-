@@ -1,0 +1,76 @@
+
+#include <stdio.h>
+
+struct Order
+{
+    int id;
+    int amount;
+};
+
+int comparisons = 0;
+
+void merge(struct Order a[], struct Order temp[],
+           int lo, int mid, int hi)
+{
+    int i = lo;
+    int j = mid + 1;
+    int k = lo;
+
+    while (i <= mid && j <= hi)
+    {
+        comparisons++;
+
+        if (a[i].amount <= a[j].amount)
+            temp[k++] = a[i++];
+        else
+            temp[k++] = a[j++];
+    }
+
+    while (i <= mid)
+        temp[k++] = a[i++];
+
+    while (j <= hi)
+        temp[k++] = a[j++];
+
+    for (i = lo; i <= hi; i++)
+        a[i] = temp[i];
+}
+
+void mergeSort(struct Order a[], struct Order temp[],
+               int lo, int hi)
+{
+    if (lo < hi)
+    {
+        int mid = lo + (hi - lo) / 2;
+
+        mergeSort(a, temp, lo, mid);
+        mergeSort(a, temp, mid + 1, hi);
+
+        merge(a, temp, lo, mid, hi);
+    }
+}
+
+int main()
+{
+    struct Order a[100], temp[100];
+    int n, i;
+
+    printf("Enter number of orders: ");
+    scanf("%d", &n);
+
+    printf("Enter order ID and amount:\n");
+
+    for (i = 0; i < n; i++)
+        scanf("%d %d", &a[i].id, &a[i].amount);
+
+    mergeSort(a, temp, 0, n - 1);
+
+    printf("\nSorted Orders:\n");
+
+    for (i = 0; i < n; i++)
+        printf("#%d:%d ", a[i].id, a[i].amount);
+
+    printf("\nComparisons = %d\n", comparisons);
+
+    return 0;
+}
