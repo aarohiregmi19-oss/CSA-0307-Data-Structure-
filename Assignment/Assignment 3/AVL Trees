@@ -1,0 +1,243 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct Node {
+    int key;
+    int height;
+    struct Node *left, *right;
+} Node;
+
+// Find maximum
+int max(int a, int b) {
+    return (a > b) ? a : b;
+}
+
+// Get height
+int height(Node *n) {
+    if (n == NULL)
+        return 0;
+
+    return n->height;
+}
+
+// Create new node
+Node *createNode(int key) {
+    Node *n = malloc(sizeof(Node));
+
+    if (n == NULL) {
+        printf("Memory allocation failed!\n");
+        exit(1);
+    }
+
+    n->key = key;
+    n->height = 1;
+    n->left = n->right = NULL;
+
+    return n;
+}
+
+// Balance factor
+int getBalance(Node *n) {
+    if (n == NULL)
+        return 0;
+
+    return height(n->left) - height(n->right);
+}
+
+// Right rotation (LL)
+Node *rotateRight(Node *y) {
+    Node *x = y->left;
+    Node *T2 = x->right;
+
+    x->right = y;
+    y->left = T2;
+
+    y->height = 1 + max(height(y->left),
+                        height(y->right));
+
+    x->height = 1 + max(height(x->left),
+                        height(x->right));
+
+    return x;
+}
+
+// Left rotation (RR)
+Node *rotateLeft(Node *x) {
+    Node *y = x->right;
+    Node *T2 = y->left;
+
+    y->left = x;
+    x->right = T2;
+
+    x->height = 1 + max(height(x->left),
+                        height(x->right));
+
+    y->height = 1 + max(height(y->left),
+                        height(y->right));
+
+    return y;
+}
+
+// AVL insertion
+Node *insert(Node *node, int key) {
+
+    if (node == NULL)
+        return createNode(key);
+
+    if (key < node->key)
+        node->left = insert(node->left, key);
+
+    else if (key > node->key)
+        node->right = insert(node->right, key);
+
+    else
+        return node;
+
+    // Update height
+    node->height = 1 + max(height(node->left),
+                           height(node->right));
+
+    // Get balance factor
+    int balance = getBalance(node);
+
+    // LL Case
+    if (balance > 1 && key < node->left->key) {
+        printf("LL Rotation\n");
+        return rotateRight(node);
+    }
+
+    // RR Case
+    if (balance < -1 && key > node->right->key) {
+        printf("RR Rotation\n");
+        return rotateLeft(node);
+    }
+
+    // LR Case
+    if (balance > 1 && key > node->left->key) {
+        printf("LR Rotation\n");
+        node->left = rotateLeft(node->left);
+        return rotateRight(node);
+    }
+
+    // RL Case
+    if (balance < -1 && key < node->right->key) {
+        printf("RL Rotation\n");
+        node->right = rotateRight(node->right);
+        return rotateLeft(node);
+    }
+
+    return node;
+}
+
+// Inorder traversal
+void inorder(Node *root) {
+    if (root == NULL)
+        return;
+
+    inorder(root->left);
+    printf("%d ", root->key);
+    inorder(root->right);
+}
+
+// Preorder traversal
+void preorder(Node *root) {
+    if (root == NULL)
+        return;
+
+    printf("%d ", root->key);
+    preorder(root->left);
+    preorder(root->right);
+}
+
+// Display tree height
+void displayHeight(Node *root) {
+    printf("Height = %d\n", height(root));
+}
+
+// Display balance factors
+void displayBalance(Node *root) {
+    if (root == NULL)
+        return;
+
+    displayBalance(root->left);
+
+    printf("Node %d: Balance Factor = %d\n",
+           root->key, getBalance(root));
+
+    displayBalance(root->right);
+}
+
+// Free memory
+void freeTree(Node *root) {
+    if (root == NULL)
+        return;
+
+    freeTree(root->left);
+    freeTree(root->right);
+    free(root);
+}
+
+// Main function
+int main() {
+    Node *root = NULL;
+    int choice, key;
+
+    while (1) {
+        printf("\n===== AVL TREE MENU =====\n");
+        printf("1. Insert\n");
+        printf("2. Inorder Traversal\n");
+        printf("3. Preorder Traversal\n");
+        printf("4. Display Height\n");
+        printf("5. Display Balance Factor\n");
+        printf("6. Exit\n");
+
+        printf("Enter choice: ");
+
+        if (scanf("%d", &choice) != 1)
+            break;
+
+        switch (choice) {
+
+            case 1:
+                printf("Enter value: ");
+                scanf("%d", &key);
+
+                root = insert(root, key);
+
+                printf("Inserted successfully!\n");
+                break;
+
+            case 2:
+                printf("Inorder: ");
+                inorder(root);
+                printf("\n");
+                break;
+
+            case 3:
+                printf("Preorder: ");
+                preorder(root);
+                printf("\n");
+                break;
+
+            case 4:
+                displayHeight(root);
+                break;
+
+            case 5:
+                displayBalance(root);
+                break;
+
+            case 6:
+                freeTree(root);
+                printf("Program terminated.\n");
+                return 0;
+
+            default:
+                printf("Invalid choice!\n");
+        }
+    }
+
+    freeTree(root);
+    return 0;
+}
