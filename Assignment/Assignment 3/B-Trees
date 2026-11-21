@@ -1,0 +1,231 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#define T 2
+#define MAX (2 * T - 1)
+
+typedef struct BTreeNode {
+    int keys[MAX];
+    struct BTreeNode *child[2 * T];
+    int n;
+    int leaf;
+} BTreeNode;
+
+BTreeNode *root = NULL;
+int diskReads = 0;
+
+BTreeNode *createNode(int leaf) {
+    BTreeNode *node = malloc(sizeof(BTreeNode));
+    node->n = 0;
+    node->leaf = leaf;
+
+    for (int i = 0; i < 2 * T; i++)
+        node->child[i] = NULL;
+
+    return node;
+}
+
+void splitChild(BTreeNode *parent, int i) {
+    BTreeNode *full = parent->child[i];
+    BTreeNode *right = createNode(full->leaf);
+
+    right->n = T - 1;
+
+    for (int j = 0; j < T - 1; j++)
+        right->keys[j] = full->keys[j + T];
+
+    if (!full->leaf) {
+        for (int j = 0; j < T; j++)
+            right->child[j] = full->child[j + T];
+    }
+
+    full->n = T - 1;
+
+    for (int j = parent->n; j >= i + 1; j--)
+        parent->child[j + 1] = parent->child[j];
+
+    parent->child[i + 1] = right;
+
+    for (int j = parent->n - 1; j >= i; j--)
+        parent->keys[j + 1] = parent->keys[j];
+
+    parent->keys[i] = full->keys[T - 1];
+    parent->n++;
+}
+
+void insertNonFull(BTreeNode *node, int key) {
+    int i = node->n - 1;
+
+    if (node->leaf) {
+        while (i >= 0 && key < node->keys[i]) {
+            node->keys[i + 1] = node->keys[i];
+            i--;
+        }
+
+        if (i >= 0 && key == node->keys[i]) {
+            printf("Duplicate key ignored.\n");
+            return;
+        }
+
+        node->keys[i + 1] = key;
+        node->n++;
+    } else {
+        while (i >= 0 && key < node->keys[i])
+            i--;
+
+        i++;
+
+        if (key == node->keys[i - 1] && i > 0) {
+            printf("Duplicate key ignored.\n");
+            return;
+        }
+
+        if (node->child[i]->n == MAX) {
+            splitChild(node, i);
+
+            if (key > node->keys[i])
+                i++;
+            else if (key == node->keys[i]) {
+                printf("Duplicate key ignored.\n");
+                return;
+            }
+        }
+
+        insertNonFull(node->child[i], key);
+    }
+}
+
+void insert(int key) {
+    if (root == NULL) {
+        root = createNode(1);
+        root->keys[0] = key;
+        root->n = 1;
+        printf("Inserted %d\n", key);
+        return;
+    }
+
+    if (root->n == MAX) {
+        BTreeNode *newRoot = createNode(0);
+        newRoot->child[0] = root;
+        splitChild(newRoot, 0);
+        root = newRoot;
+    }
+
+    insertNonFull(root, key);
+    printf("Inserted %d\n", key);
+}
+
+int search(BTreeNode *node, int key) {
+    if (node == NULL)
+        return 0;
+
+    diskReads++;
+
+    int i = 0;
+
+    while (i < node->n && key > node->keys[i])
+        i++;
+
+    if (i < node->n && key == node->keys[i])
+        return 1;
+
+    if (node->leaf)
+        return 0;
+
+    return search(node->child[i], key);
+}
+
+void display(BTreeNode *node, int level) {
+    if (node == NULL)
+        return;
+
+    printf("Level %d: [", level);
+
+    for (int i = 0; i < node->n; i++) {
+        printf("%d", node->keys[i]);
+        if (i < node->n - 1)
+            printf(" ");
+    }
+
+    printf("]\n");
+
+    if (!node->leaf) {
+        for (int i = 0; i <= node->n; i++)
+            display(node->child[i], level + 1);
+    }
+}
+
+void inorder(BTreeNode *node) {
+    if (node == NULL)
+        return;
+
+    for (int i = 0; i < node->n; i++) {
+        if (!node->leaf)
+            inorder(node->child[i]);
+
+        printf("%d ", node->keys[i]);
+    }
+
+    if (!node->leaf)
+        inorder(node->child[node->n]);
+}
+
+int main() {
+    int choice, key;
+
+    while (1) {
+        printf("\n--- B-TREE MENU ---\n");
+        printf("1. Insert\n");
+        printf("2. Search\n");
+        printf("3. Display Tree\n");
+        printf("4. Inorder Traversal\n");
+        printf("5. Exit\n");
+        printf("Enter choice: ");
+
+        if (scanf("%d", &choice) != 1)
+            break;
+
+        switch (choice) {
+            case 1:
+                printf("Enter key: ");
+                scanf("%d", &key);
+                insert(key);
+                break;
+
+            case 2:
+                printf("Enter key to search: ");
+                scanf("%d", &key);
+                diskReads = 0;
+
+                if (search(root, key))
+                    printf("Key found.\n");
+                else
+                    printf("Key not found.\n");
+
+                printf("Disk reads (node visits): %d\n", diskReads);
+                break;
+
+            case 3:
+                if (root == NULL)
+                    printf("Tree is empty.\n");
+                else
+                    display(root, 0);
+                break;
+
+            case 4:
+                printf("Inorder: ");
+                inorder(root);
+                printf("\n");
+                break;
+
+            case 5:
+                exit(0);
+
+            default:
+                printf("Invalid choice.\n");
+        }
+    }
+
+    return 0;
+}
