@@ -1,0 +1,100 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define SIZE 7
+
+struct Member {
+    char id[20];
+    char name[30];
+    struct Member *next;
+};
+
+struct Member *table[SIZE] = {NULL};
+
+/* Hash function */
+int hash(char id[]) {
+    unsigned int h = 0;
+    int i;
+
+    for (i = 0; id[i] != '\0'; i++) {
+        h = h * 31 + (unsigned char)id[i];
+    }
+
+    return h % SIZE;
+}
+
+/* Insert member */
+void put(char id[], char name[]) {
+    struct Member *m;
+
+    m = (struct Member *)malloc(sizeof(struct Member));
+
+    strcpy(m->id, id);
+    strcpy(m->name, name);
+
+    int index = hash(id);
+
+    m->next = table[index];
+    table[index] = m;
+}
+
+/* Search member */
+void get(char id[]) {
+    int index = hash(id);
+    int probes = 0;
+
+    struct Member *m = table[index];
+
+    while (m != NULL) {
+        probes++;
+
+        if (strcmp(m->id, id) == 0) {
+            printf("%s -> %s (%d probes)\n",
+                   id, m->name, probes);
+            return;
+        }
+
+        m = m->next;
+    }
+
+    printf("%s -> not found (%d probes)\n",
+           id, probes);
+}
+
+/* Display chain lengths */
+void display() {
+    int i;
+
+    for (i = 0; i < SIZE; i++) {
+        int count = 0;
+        struct Member *m = table[i];
+
+        while (m != NULL) {
+            count++;
+            m = m->next;
+        }
+
+        printf("%d ", count);
+    }
+
+    printf("\n");
+}
+
+int main() {
+    put("CSE1043", "Amit");
+    put("ECE2210", "Priya");
+    put("MEC3307", "John");
+    put("CSE1044", "Rahul");
+    put("BME4120", "Ravi");
+    put("CIV5009", "Sneha");
+
+    printf("Chain lengths: ");
+    display();
+
+    get("CSE1044");
+    get("CSE9999");
+
+    return 0;
+}
