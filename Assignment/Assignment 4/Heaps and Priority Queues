@@ -1,0 +1,90 @@
+
+#include <stdio.h>
+
+#define MAX 100
+
+struct Patient {
+    int id;
+    int severity;
+    int arrival;
+};
+
+struct Patient heap[MAX];
+int size = 0;
+
+void swap(struct Patient *a, struct Patient *b) {
+    struct Patient temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+/* Higher severity first; earlier arrival wins ties */
+int before(struct Patient a, struct Patient b) {
+    if (a.severity != b.severity)
+        return a.severity > b.severity;
+
+    return a.arrival < b.arrival;
+}
+
+/* Insert patient */
+void push(int id, int severity, int arrival) {
+    int i = size++;
+
+    heap[i].id = id;
+    heap[i].severity = severity;
+    heap[i].arrival = arrival;
+
+    while (i > 0 && before(heap[i], heap[(i - 1) / 2])) {
+        swap(&heap[i], &heap[(i - 1) / 2]);
+        i = (i - 1) / 2;
+    }
+}
+
+/* Remove highest-priority patient */
+struct Patient pop() {
+    struct Patient top = heap[0];
+
+    heap[0] = heap[size - 1];
+    size--;
+
+    int i = 0;
+
+    while (1) {
+        int left = 2 * i + 1;
+        int right = 2 * i + 2;
+        int largest = i;
+
+        if (left < size && before(heap[left], heap[largest]))
+            largest = left;
+
+        if (right < size && before(heap[right], heap[largest]))
+            largest = right;
+
+        if (largest == i)
+            break;
+
+        swap(&heap[i], &heap[largest]);
+        i = largest;
+    }
+
+    return top;
+}
+
+int main() {
+    push(101, 3, 1);
+    push(102, 9, 2);
+    push(103, 5, 3);
+    push(104, 7, 4);
+    push(105, 1, 5);
+    push(106, 8, 6);
+
+    printf("Treatment Order:\n");
+
+    while (size > 0) {
+        struct Patient p = pop();
+
+        printf("P%d (%d)\n", p.id, p.severity);
+    }
+
+    return 0;
+}
