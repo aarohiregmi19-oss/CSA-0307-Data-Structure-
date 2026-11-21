@@ -1,0 +1,321 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 256
+
+typedef struct Node {
+    unsigned char ch;
+    int end;
+    struct Node *child;
+    struct Node *sibling;
+} Node;
+
+Node *createNode(unsigned char ch) {
+    Node *n = (Node *)malloc(sizeof(Node));
+    if (!n) {
+        printf("Memory allocation failed.\n");
+        exit(1);
+    }
+    n->ch = ch;
+    n->end = 0;
+    n->child = NULL;
+    n->sibling = NULL;
+    return n;
+}
+
+/* Find or create a child in sorted order */
+Node *getChild(Node *parent, unsigned char ch, int create) {
+    Node **p = &parent->child;
+
+    while (*p && (*p)->ch < ch)
+        p = &(*p)->sibling;
+
+    if (*p && (*p)->ch == ch)
+        return *p;
+
+    if (!create)
+        return NULL;
+
+    Node *n = createNode(ch);
+    n->sibling = *p;
+    *p = n;
+    return n;
+}
+
+void insert(Node *root, const char *word) {
+    Node *t = root;
+
+    while (*word) {
+        t = getChild(t, (unsigned char)*word, 1);
+        word++;
+    }
+
+    t->end = 1;
+}
+
+Node *findPrefix(Node *root, const char *word) {
+    Node *t = root;
+
+    while (*word) {
+        t = getChild(t, (unsigned char)*word, 0);
+        if (!t) return NULL;
+        word++;
+    }
+
+    return t;
+}
+
+int search(Node *root, const char *word) {
+    Node *t = findPrefix(root, word);
+    return t && t->end;
+}
+
+void autoDFS(Node *t, char *buffer, int depth,
+             int *count, int limit) {
+    if (!t || *count >= limit) return;
+
+    if (t->end) {
+        buffer[depth] = '\0';
+        printf("%s\n", buffer);
+        (*count)++;
+    }
+
+    for (Node *p = t->child; p && *count < limit;
+         p = p->sibling) {
+        buffer[depth] = (char)p->ch;
+        autoDFS(p, buffer, depth + 1, count, limit);
+    }
+}
+
+void autocomplete(Node *root, char *prefix, int limit) {
+    Node *t = findPrefix(root, prefix);
+
+    if (!t) {
+        printf("No matching words.\n");
+        return;
+    }
+
+    char buffer[MAX];
+    strcpy(buffer, prefix);
+
+    int count = 0;
+    autoDFS(t, buffer, (int)strlen(prefix), &count, limit);
+
+    if (count == 0)
+        printf("No matching words.\n");
+}
+
+/* Print words in the inclusive range [low, high] */
+void rangeDFS(Node *t, char *buffer, int depth,
+              const char *low, const char *high, int *count) {
+    if (!t) return;
+
+    if (t->end) {
+        buffer[depth] = '\0';
+
+        if (strcmp(buffer, low) >= 0 &&
+            strcmp(buffer, high) <= 0) {
+            printf("%s\n", buffer);
+            (*count)++;
+        }
+    }
+
+    for (Node *p = t->child; p; p = p->sibling) {
+        if (depth < MAX - 1) {
+            buffer[depth] = (char)p->ch;
+            rangeDFS(p, buffer, depth + 1,
+                     low, high, count);
+        }
+    }
+}
+
+void rangeListing(Node *root, char *low, char *high) {
+    char buffer[MAX];
+    int count = 0;
+
+    if (strcmp(low, high) > 0) {
+        printf("Invalid range.\n");
+        return;
+    }
+
+    rangeDFS(root, buffer, 0, low, high, &count);
+
+    if (count == 0)
+        printf("No words in this range.\n");
+}
+
+/* Spell suggestions using edit distance <= 1 */
+void spellDFS(Node *t, const char *word, int m,
+              int *previous, char *buffer, int depth,
+              int *count) {
+    if (!t || depth >= MAX - 1) return;
+
+    int current[MAX];
+    int minimum;
+
+    for (Node *p = t->child; p; p = p->sibling) {
+        current[0] = depth + 1;
+        minimum = current[0];
+
+        for (int j = 1; j <= m; j++) {
+            int cost = (p->ch == (unsigned char)word[j - 1]) ? 0 : 1;
+
+            int a = previous[j] + 1;
+            int b = current[j - 1] + 1;
+            int c = previous[j - 1] + cost;
+
+            current[j] = a < b ? a : b;
+            if (c < current[j])
+                current[j] = c;
+
+            if (current[j] < minimum)
+                minimum = current[j];
+        }
+
+        if (minimum <= 1) {
+            buffer[depth] = (char)p->ch;
+
+            if (p->end && current[m] <= 1) {
+                buffer[depth + 1] = '\0';
+                printf("%s (distance %d)\n",
+                       buffer, current[m]);
+                (*count)++;
+            }
+
+            spellDFS(p, word, m, current,
+                     buffer, depth + 1, count);
+        }
+    }
+}
+
+void spellSuggestions(Node *root, char *word) {
+    int previous[MAX];
+    char buffer[MAX];
+    int m = (int)strlen(word);
+    int count = 0;
+
+    if (m >= MAX - 1) {
+        printf("Word is too long.\n");
+        return;
+    }
+
+    for (int i = 0; i <= m; i++)
+        previous[i] = i;
+
+    spellDFS(root, word, m, previous,
+             buffer, 0, &count);
+
+    if (count == 0)
+        printf("No suggestions found.\n");
+}
+
+int countNodes(Node *t) {
+    if (!t) return 0;
+
+    int count = 1;
+
+    for (Node *p = t->child; p; p = p->sibling)
+        count += countNodes(p);
+
+    return count;
+}
+
+void freeTrie(Node *t) {
+    if (!t) return;
+
+    Node *p = t->child;
+
+    while (p) {
+        Node *next = p->sibling;
+        freeTrie(p);
+        p = next;
+    }
+
+    free(t);
+}
+
+int main(void) {
+    Node *root = createNode(0);
+    int choice, limit;
+    char word[MAX], low[MAX], high[MAX];
+
+    while (1) {
+        printf("\n--- COMPACT TRIE DICTIONARY ---\n");
+        printf("1. Insert word\n");
+        printf("2. Search word\n");
+        printf("3. Autocomplete\n");
+        printf("4. Range listing\n");
+        printf("5. Spell suggestions\n");
+        printf("6. Display node count\n");
+        printf("7. Exit\n");
+        printf("Enter choice: ");
+
+        if (scanf("%d", &choice) != 1)
+            break;
+
+        switch (choice) {
+            case 1:
+                printf("Enter word: ");
+                scanf("%255s", word);
+                insert(root, word);
+                printf("Word inserted.\n");
+                break;
+
+            case 2:
+                printf("Enter word: ");
+                scanf("%255s", word);
+
+                if (search(root, word))
+                    printf("Word found.\n");
+                else
+                    printf("Word not found.\n");
+                break;
+
+            case 3:
+                printf("Enter prefix: ");
+                scanf("%255s", word);
+                printf("Maximum results: ");
+                scanf("%d", &limit);
+
+                if (limit > 0)
+                    autocomplete(root, word, limit);
+                else
+                    printf("Enter a positive limit.\n");
+                break;
+
+            case 4:
+                printf("Enter starting word: ");
+                scanf("%255s", low);
+                printf("Enter ending word: ");
+                scanf("%255s", high);
+
+                rangeListing(root, low, high);
+                break;
+
+            case 5:
+                printf("Enter misspelled word: ");
+                scanf("%255s", word);
+                printf("Suggestions:\n");
+                spellSuggestions(root, word);
+                break;
+
+            case 6:
+                printf("Total nodes = %d\n",
+                       countNodes(root));
+                break;
+
+            case 7:
+                freeTrie(root);
+                printf("Program ended.\n");
+                return 0;
+
+            default:
+                printf("Invalid choice.\n");
+        }
+    }
+
+    freeTrie(root);
+    return 0;
+}
