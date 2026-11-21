@@ -1,0 +1,75 @@
+
+#include <stdio.h>
+
+#define MAX 20
+
+int main() {
+    int graph[MAX][MAX] = {0};
+    int visited[MAX] = {0};
+    int dist[MAX], parent[MAX];
+    int queue[MAX];
+    int n = 7, e, u, v, start, target;
+    int front = 0, rear = 0;
+
+    char *name[] = {
+        "Airport", "Guindy", "Saidapet",
+        "Central", "Egmore", "Vadapalani",
+        "Koyambedu"
+    };
+
+    printf("Enter number of edges: ");
+    scanf("%d", &e);
+
+    printf("Enter edges (u v):\n");
+    for (int i = 0; i < e; i++) {
+        scanf("%d %d", &u, &v);
+        graph[u][v] = 1;
+        graph[v][u] = 1;
+    }
+
+    printf("Enter source and destination: ");
+    scanf("%d %d", &start, &target);
+
+    for (int i = 0; i < n; i++) {
+        dist[i] = -1;
+        parent[i] = -1;
+    }
+
+    visited[start] = 1;
+    dist[start] = 0;
+    queue[rear++] = start;
+
+    printf("\nBFS Traversal:\n");
+
+    while (front < rear) {
+        u = queue[front++];
+
+        printf("%s ", name[u]);
+
+        for (int v = 0; v < n; v++) {
+            if (graph[u][v] && !visited[v]) {
+                visited[v] = 1;
+                dist[v] = dist[u] + 1;
+                parent[v] = u;
+                queue[rear++] = v;
+            }
+        }
+    }
+
+    if (dist[target] == -1) {
+        printf("\nDestination unreachable.\n");
+    } else {
+        printf("\n%s is %d stops away.\n",
+               name[target], dist[target]);
+
+        printf("Path (destination to source): ");
+
+        int current = target;
+        while (current != -1) {
+            printf("%s ", name[current]);
+            current = parent[current];
+        }
+    }
+
+    return 0;
+}
