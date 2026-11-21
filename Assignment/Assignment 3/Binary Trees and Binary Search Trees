@@ -1,0 +1,364 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct Book {
+    int acc;
+    struct Book *left, *right;
+} Book;
+
+// Create a new node
+Book *createNode(int acc) {
+    Book *n = malloc(sizeof(Book));
+
+    if (n == NULL) {
+        printf("Memory allocation failed!\n");
+        exit(1);
+    }
+
+    n->acc = acc;
+    n->left = n->right = NULL;
+    return n;
+}
+
+// 1. Recursive insertion
+Book *insertRecursive(Book *root, int acc) {
+    if (root == NULL)
+        return createNode(acc);
+
+    if (acc < root->acc)
+        root->left = insertRecursive(root->left, acc);
+    else if (acc > root->acc)
+        root->right = insertRecursive(root->right, acc);
+
+    return root;
+}
+
+// 2. Iterative insertion
+Book *insertIterative(Book *root, int acc) {
+    Book *n = createNode(acc);
+
+    if (root == NULL)
+        return n;
+
+    Book *current = root;
+    Book *parent = NULL;
+
+    while (current != NULL) {
+        parent = current;
+
+        if (acc < current->acc)
+            current = current->left;
+        else if (acc > current->acc)
+            current = current->right;
+        else {
+            free(n);
+            return root;
+        }
+    }
+
+    if (acc < parent->acc)
+        parent->left = n;
+    else
+        parent->right = n;
+
+    return root;
+}
+
+// 3. Search with comparison counter
+int search(Book *root, int key, int *count) {
+    *count = 0;
+
+    while (root != NULL) {
+        (*count)++;
+
+        if (key == root->acc)
+            return 1;
+
+        if (key < root->acc)
+            root = root->left;
+        else
+            root = root->right;
+    }
+
+    return 0;
+}
+
+// 4. Find minimum node
+Book *findMin(Book *root) {
+    while (root && root->left != NULL)
+        root = root->left;
+
+    return root;
+}
+
+// 5. Delete node (three cases)
+Book *deleteNode(Book *root, int key) {
+    if (root == NULL)
+        return NULL;
+
+    if (key < root->acc) {
+        root->left = deleteNode(root->left, key);
+    }
+    else if (key > root->acc) {
+        root->right = deleteNode(root->right, key);
+    }
+    else {
+        if (root->left == NULL && root->right == NULL) {
+            printf("Case 1: Leaf node deleted\n");
+            free(root);
+            return NULL;
+        }
+
+        else if (root->left == NULL || root->right == NULL) {
+            printf("Case 2: One child deleted\n");
+
+            Book *temp = root->left ?
+                         root->left : root->right;
+
+            free(root);
+            return temp;
+        }
+
+        else {
+            printf("Case 3: Two children deleted\n");
+
+            Book *temp = findMin(root->right);
+
+            root->acc = temp->acc;
+            root->right = deleteNode(root->right, temp->acc);
+        }
+    }
+
+    return root;
+}
+
+// 6. Find height (empty tree = -1)
+int height(Book *root) {
+    if (root == NULL)
+        return -1;
+
+    int lh = height(root->left);
+    int rh = height(root->right);
+
+    return 1 + (lh > rh ? lh : rh);
+}
+
+// 7. Preorder traversal
+void preorder(Book *root) {
+    if (root == NULL)
+        return;
+
+    printf("%d ", root->acc);
+    preorder(root->left);
+    preorder(root->right);
+}
+
+// 8. Inorder traversal
+void inorder(Book *root) {
+    if (root == NULL)
+        return;
+
+    inorder(root->left);
+    printf("%d ", root->acc);
+    inorder(root->right);
+}
+
+// 9. Postorder traversal
+void postorder(Book *root) {
+    if (root == NULL)
+        return;
+
+    postorder(root->left);
+    postorder(root->right);
+    printf("%d ", root->acc);
+}
+
+// 10. Level-order traversal
+void levelOrder(Book *root) {
+    if (root == NULL)
+        return;
+
+    Book *queue[10000];
+    int front = 0, rear = 0;
+
+    queue[rear++] = root;
+
+    while (front < rear) {
+        Book *current = queue[front++];
+
+        printf("%d ", current->acc);
+
+        if (current->left != NULL)
+            queue[rear++] = current->left;
+
+        if (current->right != NULL)
+            queue[rear++] = current->right;
+    }
+}
+
+// 11. Save tree using preorder
+void saveTree(Book *root, FILE *fp) {
+    if (root == NULL)
+        return;
+
+    fprintf(fp, "%d ", root->acc);
+
+    saveTree(root->left, fp);
+    saveTree(root->right, fp);
+}
+
+// 12. Rebuild tree from preorder file
+Book *rebuildTree(Book *root, FILE *fp) {
+    int key;
+
+    while (fscanf(fp, "%d", &key) == 1)
+        root = insertRecursive(root, key);
+
+    return root;
+}
+
+// Free memory
+void freeTree(Book *root) {
+    if (root == NULL)
+        return;
+
+    freeTree(root->left);
+    freeTree(root->right);
+    free(root);
+}
+
+// Main function
+int main() {
+    Book *root = NULL;
+    int choice, key, count;
+
+    while (1) {
+        printf("\n\n===== BST OPERATIONS =====\n");
+        printf("1. Insert (Recursive)\n");
+        printf("2. Insert (Iterative)\n");
+        printf("3. Search\n");
+        printf("4. Delete\n");
+        printf("5. Height\n");
+        printf("6. Preorder\n");
+        printf("7. Inorder\n");
+        printf("8. Postorder\n");
+        printf("9. Level Order\n");
+        printf("10. Save Tree\n");
+        printf("11. Rebuild Tree\n");
+        printf("12. Exit\n");
+
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                printf("Enter accession number: ");
+                scanf("%d", &key);
+                root = insertRecursive(root, key);
+                printf("Inserted successfully!\n");
+                break;
+
+            case 2:
+                printf("Enter accession number: ");
+                scanf("%d", &key);
+                root = insertIterative(root, key);
+                printf("Insertion completed!\n");
+                break;
+
+            case 3:
+                printf("Enter key to search: ");
+                scanf("%d", &key);
+
+                if (search(root, key, &count))
+                    printf("Book found!\n");
+                else
+                    printf("Book not found!\n");
+
+                printf("Comparisons: %d\n", count);
+                break;
+
+            case 4:
+                printf("Enter key to delete: ");
+                scanf("%d", &key);
+
+                if (!search(root, key, &count))
+                    printf("Book not found!\n");
+                else
+                    root = deleteNode(root, key);
+
+                break;
+
+            case 5:
+                printf("Height of tree: %d\n", height(root));
+                break;
+
+            case 6:
+                printf("Preorder: ");
+                preorder(root);
+                printf("\n");
+                break;
+
+            case 7:
+                printf("Inorder: ");
+                inorder(root);
+                printf("\n");
+                break;
+
+            case 8:
+                printf("Postorder: ");
+                postorder(root);
+                printf("\n");
+                break;
+
+            case 9:
+                printf("Level Order: ");
+                levelOrder(root);
+                printf("\n");
+                break;
+
+            case 10: {
+                FILE *fp = fopen("tree.txt", "w");
+
+                if (fp == NULL) {
+                    printf("File opening failed!\n");
+                    break;
+                }
+
+                saveTree(root, fp);
+                fclose(fp);
+
+                printf("Tree saved successfully!\n");
+                break;
+            }
+
+            case 11: {
+                FILE *fp = fopen("tree.txt", "r");
+
+                if (fp == NULL) {
+                    printf("File not found!\n");
+                    break;
+                }
+
+                freeTree(root);
+                root = NULL;
+
+                root = rebuildTree(root, fp);
+                fclose(fp);
+
+                printf("Tree rebuilt successfully!\n");
+                break;
+            }
+
+            case 12:
+                freeTree(root);
+                printf("Program terminated.\n");
+                return 0;
+
+            default:
+                printf("Invalid choice!\n");
+        }
+    }
+
+    return 0;
+}
